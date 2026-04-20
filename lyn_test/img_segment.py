@@ -16,7 +16,8 @@ processor = Sam3Processor(model)
 sam3_root = os.path.join(os.path.dirname(sam3.__file__), "..")
 
 # img_path = f"{sam3_root}/assets/images/test_image.jpg"
-img_path = "/home/lyn/FoundationPose/FoundationPose_manual/geminiHead/rgb/0001.png"
+img_path = "/home/lyn/code/FoundationPose/FoundationPose_manual/kinect_high_precision_v5/rgb/000000.png"
+output_path = "/home/lyn/code/FoundationPose/FoundationPose_manual/kinect_high_precision_v5/masks/000000.png"
 image = Image.open(img_path)
 inference_state = processor.set_image(image)
 # 分割图片
@@ -92,5 +93,27 @@ def save_segmentation_result(image_path, output_path, masks, boxes, scores):
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"分割结果已保存到: {output_path}")
+
+# 新增：保存为黑底白目标的二进制 PNG 掩码
+def save_binary_mask(image_path, output_path, masks):
+    """将所有分割掩码合并并保存为二值PNG（背景黑=0，目标白=255）"""
+    image = Image.open(image_path)
+    image_np = np.array(image)
+    H, W = image_np.shape[:2]
+    combined = np.zeros((H, W), dtype=bool)
+    for mask in masks:
+        pm = process_mask(mask)
+        if pm.shape != (H, W):
+            from PIL import Image as PILImage
+            mask_pil = PILImage.fromarray(pm.astype(np.uint8) * 255)
+            mask_pil = mask_pil.resize((W, H), PILImage.NEAREST)
+            pm = np.array(mask_pil).astype(bool)
+        combined |= pm
+    mask_uint8 = (combined.astype(np.uint8) * 255)
+    mask_img = Image.fromarray(mask_uint8)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    mask_img.save(output_path, format="PNG")
+    print(f"二值掩码已保存到: {output_path}")
 # 分割结果保存
-save_segmentation_result(img_path, "/home/lyn/sam3/lyn_test/output/segmentation_result.jpg", masks, boxes, scores)
+# save_segmentation_result(img_path, "/home/lyn/code/sam3/lyn_test/output/kinect_v3_segmentation_result.jpg", masks, boxes, scores)
+save_binary_mask(img_path, output_path, masks)
